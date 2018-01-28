@@ -1,0 +1,23 @@
+#!/usr/bin/bash
+
+######################################################################
+# Copyright 2018 Aaron S. Jackson <asj@cs.nott.ac.uk>
+#                University of Nottingham
+#
+# This script augments/replaces the output of nvidia-smi to include
+# details about who is using the GPUs. This reduces the effort to
+# identify those who are hogging all of the GPUs. :)
+
+cat \
+<(echo "|,GPU,PID,User,Memory,|") \
+<(echo "|,---,---,----,------,|") \
+<(nvidia-smi | awk '$4 == "C"' | while read line ; do
+        gpu=$(echo $line | awk '{ print $2 }')
+        pid=$(echo $line | awk '{ print $3 }')
+        user=$(ps -ho user $pid)
+        name=$(getent passwd $user | cut -d':' -f5)
+        name=${name:="Not in Directory"}
+        mem=$(echo $line | awk '{ print $6 }')
+
+        echo "|,$gpu,$pid   ,$user ($name)      ,$mem,|"
+done)  | column -s, -t

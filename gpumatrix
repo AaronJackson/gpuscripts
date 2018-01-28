@@ -1,0 +1,89 @@
+#!/usr/bin/bash
+
+######################################################################
+# Copyright 2018 Aaron S. Jackson <asj@cs.nott.ac.uk>
+#                University of Nottingham
+#
+#
+# This script prints out GPU utilization for a fixed set of hosts,
+# which must be running NetData with the nvidia module installed.
+#
+# Use a plus (+) to add a separator between hosts. This can be used to
+# define groups of machines.
+#
+# Each host record should be the hostname followed by a comma,
+# followed by the number of GPUs in the aforementioned machine. There
+# should be no spaces during a host definition. Spaces are used to
+# hosts.
+#
+# The script currently supports up for four GPUs per host. It can be
+# adapted to add more, but this is not handled in a clean way, yet.
+
+# Define hosts and domain suffix below:
+host="gpu-0,4 gpu-1,4 gpu-2,4 + demos-1,4 demos-2,3"
+domain="cs.nott.ac.uk"
+api="/api/v1/data?chart=nv.load&format=csv"
+
+# Messy script begins now
+
+MAX_GPU=$(echo $host | tr ' ' '\n' | \
+	      awk -F, '{ print $2 }' | \
+	      sort | tail -n1)
+
+echo
+echo "  1-minute average:"
+
+sep="  +-----------+"
+header="  |  HOSTNAME |"
+for i in $(seq 0 $((MAX_GPU-1))) ; do
+    sep="$sep--------+";
+    header="$header  GPU$i  |"
+done
+echo "$sep"
+echo "$header"
+echo "$sep"
+
+G=$(tput setaf 2)
+R=$(tput setaf 1)
+Y=$(tput setaf 5)
+D=$(tput sgr0 0)
+
+echo $host | tr ' ' '\n' | while IFS=, read host count ; do
+    if [ $host = "+" ] ; then
+	echo "$sep"
+	continue
+    fi
+    out=$(curl -s --max-time 10 \
+	       "http://$host.$domain:19999/$api")
+
+    echo "$out"  | head -n61 | tail -n60 | \
+	awk -F, '{ g0 += $2; g1 += $4; g2 += $6; g3 += $8; } END \
+	         { printf "%.0f %.0f %.0f %.0f\n", \
+		          g0/NR, g1/NR, g2/NR, g3/NR }' | \
+     	while read -r -a loads ; do
+	    for i in $(seq 0 $((MAX_GPU-1))) ; do
+		if [ $i -ge $count ] ; then
+		    g[i]="$G $D" # for formatting the table
+		    continue
+		fi
+
+		load=${loads[i]}
+
+		if [ $load -lt 5 ] ; then
+		    g[i]="${load}% ${G}F${D}"
+		elif [ $load -lt 55 ] ; then
+		    g[i]="${load}% ${Y}u${D}"
+		else
+		    g[i]="${load}% ${R}U${D}"
+		fi
+	    done
+
+	    printf "  | %9s | " $host
+	    printf "%17s | " "${g[@]}"
+	    printf "\n"
+     	done
+done
+
+echo "$sep"
+echo "  ${R}U${D} = used, ${Y}u${D} = partially used, ${G}F${D} = free"
+echo

@@ -1,0 +1,40 @@
+#+TITLE: GPU Shell Scripts
+
+These are the scripts we use on the GPU machines in the Computer
+Vision Laboratory. These machines have grown organically, there is
+still little need for any formal queuing for scheduling. These scripts
+help us get along.
+
+- ~nvidia-who~ augments and replaces some of the output of the normal
+  ~nvidia-smi~ command, which does not show who is running the
+  process, unless their username is included in the process name. This
+  aims to fix that by showing who is using a GPU, not what.
+
+#+BEGIN_SRC
+|  GPU  PID       User                          Memory    |
+|  ---  ---       ----                          ------    |
+|  0    26851     abcxyz (Some Person)           11732MiB |
+|  1    26851     abcxyz (Some Person)           11591MiB |
+|  2    22597     bcewxy (Another Man)            7130MiB |
+|  3    4820      bcewxy (Another Man)            7129MiB |
+#+END_SRC
+
+- ~gpumatrix~ queries specified machines via NetData (this therefore
+  requires the [[https://github.com/coraxx/netdata_nv_plugin][nv]] plugin). It shows a one minute average of all these
+  GPUs. This script is quite rough and only supports machines with
+  four GPUs at the moment, but it can easily be modified to work with
+  more.
+
+#+BEGIN_SRC
+  1-minute average:
+  +-----------+--------+--------+--------+--------+
+  |  HOSTNAME |  GPU0  |  GPU1  |  GPU2  |  GPU3  |
+  +-----------+--------+--------+--------+--------+
+  |     gpu-0 | 100% U |  88% U |   0% F |  51% U |
+  |     gpu-1 |  61% U |   0% F | 100% U | 100% U |
+  |     gpu-2 |  90% U |  87% U |   0% F |  96% F |
+  +-----------+--------+--------+--------+--------+
+  |  demos-1  |  12% u |        |        |        |
+  +-----------+--------+--------+--------+--------+
+  U = used, u = partially used, F = free
+#+END_SRC
